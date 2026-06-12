@@ -1,15 +1,15 @@
 import React from 'react';
-import { Database, FileSpreadsheet, Trash2, CalendarDays, Hash } from 'lucide-react';
+import { Database, FileSpreadsheet, Trash2, CalendarDays, Hash, Eye } from 'lucide-react';
 import axios from 'axios';
 
-const UploadsSidebar = ({ uploads, activeUploadId, onSelectUpload, onUploadsChange }) => {
+const UploadsSidebar = ({ uploads, activeUploadId, onSelectUpload, onUploadsChange, onViewExcel }) => {
   const handleDelete = async (e, id) => {
     e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this file and all its data?")) return;
 
     try {
       await axios.delete(`http://localhost:5000/api/tenders/uploads/${id}`);
-      onUploadsChange(); // Trigger a refetch in parent
+      onUploadsChange();
     } catch (error) {
       alert("Failed to delete upload");
       console.error(error);
@@ -65,9 +65,22 @@ const UploadsSidebar = ({ uploads, activeUploadId, onSelectUpload, onUploadsChan
                   {new Date(upload.uploaded_at).toLocaleDateString()}
                 </span>
               </div>
-              
-              <button 
-                className="delete-btn" 
+
+              {/* View Raw Excel button */}
+              <button
+                className="view-excel-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onViewExcel) onViewExcel(upload);
+                }}
+                title="View Raw Excel"
+              >
+                <Eye size={13} />
+                View Excel
+              </button>
+
+              <button
+                className="delete-btn"
                 onClick={(e) => handleDelete(e, upload.id)}
                 title="Delete File"
               >

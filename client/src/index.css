@@ -142,6 +142,36 @@ body {
   color: #f87171;
 }
 
+/* View Excel button inside sidebar item */
+.view-excel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: 6px;
+  color: #34d399;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  width: fit-content;
+  font-family: 'Inter', sans-serif;
+}
+
+.upload-item:hover .view-excel-btn {
+  opacity: 1;
+}
+
+.view-excel-btn:hover {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.4);
+  transform: translateY(-1px);
+}
+
 .main-content {
   flex: 1;
   padding: 2rem;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UploadCloud, FileText, Trash2, Calendar, MapPin, Briefcase, Users, Phone, Mail, Building } from 'lucide-react';
+import { ArrowLeft, UploadCloud, FileText, Trash2, Calendar, MapPin, Briefcase, Users, Phone, Mail, Building, Maximize2, Minimize2, X } from 'lucide-react';
 import * as mammoth from 'mammoth';
 import '../index.css';
 
@@ -13,6 +13,7 @@ const TenderDetail = ({ tender, onBack }) => {
   const [viewingDoc, setViewingDoc] = useState(null);
   const [docxHtml, setDocxHtml] = useState('');
   const [isDocxLoading, setIsDocxLoading] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     if (viewingDoc) {
@@ -52,6 +53,21 @@ const TenderDetail = ({ tender, onBack }) => {
     }
   }, [tender]);
 
+  // Close fullscreen on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (viewingDoc) {
+          setViewingDoc(null);
+        } else if (isFullScreen) {
+          setIsFullScreen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen, viewingDoc]);
+
   const fetchDocuments = async () => {
     try {
       const res = await axios.get(`http://localhost:5000/api/tenders/${tender.id}/documents`);
@@ -86,13 +102,10 @@ const TenderDetail = ({ tender, onBack }) => {
 
     try {
       await axios.post(`http://localhost:5000/api/tenders/${tender.id}/documents`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       setDocName('');
       setSelectedFile(null);
-      // Reset file input
       document.getElementById('file-upload-input').value = "";
       fetchDocuments();
     } catch (err) {
@@ -111,214 +124,240 @@ const TenderDetail = ({ tender, onBack }) => {
     return isNaN(d.getTime()) ? dateString : d.toLocaleDateString();
   };
 
-  return (
-    <div className="tender-detail-container" style={{ animation: "fadeIn 0.3s ease", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      
-      {/* Header section */}
-      <div className="glass-panel" style={{ padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-        <button 
-          onClick={onBack}
-          style={{
-            background: "rgba(255, 255, 255, 0.05)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            color: "#eee",
-            padding: "0.5rem",
-            borderRadius: "8px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s"
-          }}
-          onMouseOver={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"}
-          onMouseOut={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 600, margin: 0, color: "#fff" }}>
-            {tender.unit_project || "Tender Details"}
+  // ── Content that renders identically in normal & fullscreen modes ──────────
+  const detailContent = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
+
+      {/* ── Header ── */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '1.25rem 1.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          flexShrink: 0,
+          background: isFullScreen
+            ? 'rgba(15,23,42,0.95)'
+            : undefined,
+        }}
+      >
+        {/* Back button (hidden in fullscreen — use X instead) */}
+        {!isFullScreen && (
+          <button
+            onClick={onBack}
+            title="Go Back"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#eee',
+              padding: '0.5rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ fontSize: isFullScreen ? '1.6rem' : '1.4rem', fontWeight: 700, margin: 0, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {tender.unit_project || 'Tender Details'}
           </h2>
-          <p style={{ color: "#aaa", fontSize: "0.9rem", margin: "0.2rem 0 0 0" }}>
-            ID: {tender.id} | Upload Source: {tender._sourceFile || 'Unknown'}
+          <p style={{ color: '#888', fontSize: '0.88rem', margin: '0.2rem 0 0 0' }}>
+            ID: {tender.id} · Source: {tender._sourceFile || 'Manual Entry'}
           </p>
         </div>
+
+        {/* Fullscreen toggle */}
+        <button
+          onClick={() => setIsFullScreen(fs => !fs)}
+          id="btn-fullscreen-toggle"
+          title={isFullScreen ? 'Exit Full Screen (Esc)' : 'Full Screen View'}
+          style={{
+            background: isFullScreen
+              ? 'rgba(99,102,241,0.15)'
+              : 'rgba(99,102,241,0.1)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            color: '#818cf8',
+            padding: '0.5rem 0.9rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            transition: 'all 0.2s',
+            flexShrink: 0,
+          }}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(99,102,241,0.25)'}
+          onMouseOut={e => e.currentTarget.style.background = isFullScreen ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.1)'}
+        >
+          {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          {isFullScreen ? 'Exit Full Screen' : 'Full Screen'}
+        </button>
+
+        {/* Close button only in fullscreen */}
+        {isFullScreen && (
+          <button
+            onClick={() => { setIsFullScreen(false); onBack(); }}
+            title="Close"
+            style={{
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              color: '#f87171',
+              padding: '0.5rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", alignItems: "start" }}>
-        
-        {/* Tender Information */}
-        <div className="glass-panel" style={{ padding: "1.5rem" }}>
-          <h3 style={{ fontSize: "1.1rem", marginBottom: "1rem", color: "#60a5fa", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      {/* ── Main Grid ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isFullScreen ? '1fr 1fr' : '1fr 1fr',
+        gap: '1.5rem',
+        alignItems: 'start',
+        flex: isFullScreen ? 1 : undefined,
+        overflow: isFullScreen ? 'auto' : undefined,
+        paddingBottom: isFullScreen ? '1rem' : undefined,
+      }}>
+
+        {/* Tender Information Panel */}
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Briefcase size={18} /> Basic Information
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem", color: "#ddd" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><MapPin size={14} style={{ display: "inline", marginRight: "4px" }} />Area:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.area || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Briefcase size={14} style={{ display: "inline", marginRight: "4px" }} />Contract Type:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.type_of_contract || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Calendar size={14} style={{ display: "inline", marginRight: "4px" }} />Contract Period:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.contract_period || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Calendar size={14} style={{ display: "inline", marginRight: "4px" }} />Published Date:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{formatDate(tender.published_date)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Users size={14} style={{ display: "inline", marginRight: "4px" }} />Participated / Qualified:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.bidders_participated || 0} / {tender.qualified_bidder || 0}</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', color: '#ddd' }}>
+            {[
+              { icon: <MapPin size={14} />, label: 'Area', value: tender.area },
+              { icon: <Briefcase size={14} />, label: 'Contract Type', value: tender.type_of_contract },
+              { icon: <Calendar size={14} />, label: 'Contract Period', value: tender.contract_period },
+              { icon: <Calendar size={14} />, label: 'Published Date', value: formatDate(tender.published_date) },
+              { icon: <Users size={14} />, label: 'Participated / Qualified', value: `${tender.bidders_participated || 0} / ${tender.qualified_bidder || 0}` },
+            ].map(({ icon, label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem', gap: '1rem' }}>
+                <span style={{ color: '#888', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                  {icon}{label}:
+                </span>
+                <span style={{ fontWeight: 500, textAlign: 'right', color: value && value !== '—' ? '#f1f5f9' : '#555' }}>
+                  {value || '—'}
+                </span>
+              </div>
+            ))}
           </div>
 
-          <h3 style={{ fontSize: "1.1rem", marginTop: "1.5rem", marginBottom: "1rem", color: "#34d399", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <h3 style={{ fontSize: '1.1rem', marginTop: '1.5rem', marginBottom: '1rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Building size={18} /> Successful Bidder
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem", color: "#ddd" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}>Name:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.successful_bidder_name || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}>Address:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.successful_bidder_address || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Phone size={14} style={{ display: "inline", marginRight: "4px" }} />Contact:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.successful_bidder_contact || "—"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
-              <span style={{ color: "#888" }}><Mail size={14} style={{ display: "inline", marginRight: "4px" }} />Email:</span>
-              <span style={{ fontWeight: 500, textAlign: "right" }}>{tender.successful_bidder_email || "—"}</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', color: '#ddd' }}>
+            {[
+              { label: 'Name', value: tender.successful_bidder_name },
+              { label: 'Address', value: tender.successful_bidder_address },
+              { icon: <Phone size={14} />, label: 'Contact', value: tender.successful_bidder_contact },
+              { icon: <Mail size={14} />, label: 'Email', value: tender.successful_bidder_email },
+            ].map(({ icon, label, value }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem', gap: '1rem' }}>
+                <span style={{ color: '#888', display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                  {icon}{label}:
+                </span>
+                <span style={{ fontWeight: 500, textAlign: 'right', color: value && value !== '—' ? '#f1f5f9' : '#555' }}>
+                  {value || '—'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Document Upload & List Section */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          
-          <div className="glass-panel" style={{ padding: "1.5rem" }}>
-            <h3 style={{ fontSize: "1.1rem", marginBottom: "1rem", color: "#c084fc", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        {/* Documents Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* Upload Form */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <UploadCloud size={18} /> Upload New Document
             </h3>
-            
-            <form onSubmit={handleUpload} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#888", marginBottom: "0.3rem" }}>Document Name</label>
-                <input 
-                  type="text" 
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#888', marginBottom: '0.3rem' }}>Document Name</label>
+                <input
+                  type="text"
                   value={docName}
-                  onChange={(e) => setDocName(e.target.value)}
+                  onChange={e => setDocName(e.target.value)}
                   placeholder="e.g., Notice Inviting Tender, Contract Agreement"
-                  style={{
-                    width: "100%",
-                    background: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "#fff",
-                    padding: "0.6rem",
-                    borderRadius: "6px",
-                    outline: "none"
-                  }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '0.6rem', borderRadius: '6px', outline: 'none', fontFamily: 'Inter, sans-serif' }}
                 />
               </div>
-
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#888", marginBottom: "0.3rem" }}>Document File (PDF / Word)</label>
-                <input 
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#888', marginBottom: '0.3rem' }}>Document File (PDF / Word)</label>
+                <input
                   id="file-upload-input"
-                  type="file" 
+                  type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileChange}
-                  style={{
-                    width: "100%",
-                    background: "rgba(255, 255, 255, 0.02)",
-                    border: "1px dashed rgba(255, 255, 255, 0.2)",
-                    color: "#fff",
-                    padding: "0.6rem",
-                    borderRadius: "6px",
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.2)', color: '#fff', padding: '0.6rem', borderRadius: '6px', outline: 'none', cursor: 'pointer' }}
                 />
               </div>
-
-              {errorMsg && (
-                <div style={{ color: "#ef4444", fontSize: "0.85rem" }}>
-                  {errorMsg}
-                </div>
-              )}
-
-              <button 
+              {errorMsg && <div style={{ color: '#ef4444', fontSize: '0.85rem' }}>{errorMsg}</div>}
+              <button
                 type="submit"
                 disabled={isUploading}
                 className="btn-primary"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  padding: "0.6rem",
-                  marginTop: "0.5rem",
-                  opacity: isUploading ? 0.7 : 1
-                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.6rem', marginTop: '0.5rem', opacity: isUploading ? 0.7 : 1 }}
               >
                 <UploadCloud size={18} />
-                {isUploading ? "Uploading..." : "Upload Document"}
+                {isUploading ? 'Uploading...' : 'Upload Document'}
               </button>
             </form>
           </div>
 
-          <div className="glass-panel" style={{ padding: "1.5rem", flexGrow: 1 }}>
-            <h3 style={{ fontSize: "1.1rem", marginBottom: "1rem", color: "#f87171", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {/* Document List */}
+          <div className="glass-panel" style={{ padding: '1.5rem', flexGrow: 1 }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={18} /> Uploaded Documents ({documents.length})
             </h3>
-            
             {documents.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2rem 0", color: "#666" }}>
-                <FileText size={40} style={{ opacity: 0.3, margin: "0 auto 1rem" }} />
+              <div style={{ textAlign: 'center', padding: '2rem 0', color: '#666' }}>
+                <FileText size={40} style={{ opacity: 0.3, margin: '0 auto 1rem' }} />
                 <p>No documents uploaded yet.</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
-                {documents.map((doc) => (
-                  <div key={doc.id} style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    borderRadius: "8px",
-                    padding: "0.8rem 1rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    transition: "background 0.2s"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-                  onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                {documents.map(doc => (
+                  <div
+                    key={doc.id}
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                       <FileText size={20} color="#f87171" />
                       <div>
-                        <div style={{ fontWeight: 500, color: "#eee" }}>{doc.document_name}</div>
-                        <div style={{ fontSize: "0.75rem", color: "#888" }}>
-                          {doc.file_name} • {formatDate(doc.uploaded_at)}
-                        </div>
+                        <div style={{ fontWeight: 500, color: '#eee' }}>{doc.document_name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#888' }}>{doc.file_name} · {formatDate(doc.uploaded_at)}</div>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setViewingDoc(doc)}
-                      style={{
-                        background: "rgba(59, 130, 246, 0.2)",
-                        color: "#60a5fa",
-                        padding: "0.4rem 0.8rem",
-                        borderRadius: "4px",
-                        fontSize: "0.8rem",
-                        border: "none",
-                        cursor: "pointer",
-                        fontWeight: 500
-                      }}
+                      style={{ background: 'rgba(59,130,246,0.2)', color: '#60a5fa', padding: '0.4rem 0.8rem', borderRadius: '4px', fontSize: '0.8rem', border: 'none', cursor: 'pointer', fontWeight: 500 }}
                     >
                       View
                     </button>
@@ -327,89 +366,102 @@ const TenderDetail = ({ tender, onBack }) => {
               </div>
             )}
           </div>
-          
+
         </div>
       </div>
+    </div>
+  );
 
-      {/* Document Viewer Modal */}
+  return (
+    <>
+      {/* ── Normal (inline) view ── */}
+      {!isFullScreen && (
+        <div className="tender-detail-container" style={{ animation: 'fadeIn 0.3s ease' }}>
+          {detailContent}
+        </div>
+      )}
+
+      {/* ── Full Screen Overlay ── */}
+      {isFullScreen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2000,
+            background: 'rgba(5,8,22,0.98)',
+            backdropFilter: 'blur(10px)',
+            overflowY: 'auto',
+            padding: '1.5rem 2rem',
+            animation: 'fsIn 0.25s ease',
+          }}
+        >
+          {detailContent}
+        </div>
+      )}
+
+      {/* ── Document Viewer Modal ── */}
       {viewingDoc && (
         <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.8)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: 1000,
-          padding: "2rem"
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 3000, padding: '2rem',
+          backdropFilter: 'blur(6px)',
         }}>
           <div style={{
-            background: "#1e1e2e",
-            borderRadius: "12px",
-            width: "100%",
-            maxWidth: "1000px",
-            height: "90vh",
-            display: "flex",
-            flexDirection: "column",
-            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-            overflow: "hidden"
+            background: '#1e1e2e', borderRadius: '12px',
+            width: '100%', maxWidth: '1000px', height: '90vh',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden',
           }}>
             <div style={{
-              padding: "1rem 1.5rem",
-              borderBottom: "1px solid rgba(255,255,255,0.1)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "rgba(0,0,0,0.2)"
+              padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: 'rgba(0,0,0,0.2)',
             }}>
-              <h3 style={{ margin: 0, color: "#eee", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <FileText size={18} color="#60a5fa" />
-                {viewingDoc.document_name}
+              <h3 style={{ margin: 0, color: '#eee', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} color="#60a5fa" /> {viewingDoc.document_name}
               </h3>
-              <button 
+              <button
                 onClick={() => setViewingDoc(null)}
-                style={{
-                  background: "rgba(239, 68, 68, 0.2)",
-                  color: "#ef4444",
-                  border: "none",
-                  padding: "0.4rem 0.8rem",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  transition: "background 0.2s"
-                }}
-                onMouseOver={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.3)"}
-                onMouseOut={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
+                style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.3)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
               >
                 Close
               </button>
             </div>
-            <div style={{ flexGrow: 1, backgroundColor: "#fff", position: "relative", overflow: "auto", padding: docxHtml ? "2rem" : 0 }}>
+            <div style={{ flexGrow: 1, backgroundColor: '#fff', position: 'relative', overflow: 'auto', padding: docxHtml ? '2rem' : 0 }}>
               {isDocxLoading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', fontSize: '1.2rem' }}>
                   Loading Document...
                 </div>
               ) : docxHtml ? (
-                <div 
-                  dangerouslySetInnerHTML={{ __html: docxHtml }} 
-                  style={{ color: '#000', fontFamily: 'Arial, sans-serif', lineHeight: '1.6' }} 
+                <div
+                  dangerouslySetInnerHTML={{ __html: docxHtml }}
+                  style={{ color: '#000', fontFamily: 'Arial, sans-serif', lineHeight: '1.6' }}
                   className="docx-viewer"
                 />
               ) : (
-                <iframe 
-                  src={`http://localhost:5000${viewingDoc.file_path}`} 
+                <iframe
+                  src={`http://localhost:5000${viewingDoc.file_path}`}
                   title={viewingDoc.document_name}
-                  style={{ width: "100%", height: "100%", border: "none" }}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
                 />
               )}
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes fsIn {
+          from { opacity: 0; transform: scale(0.97) }
+          to   { opacity: 1; transform: scale(1) }
+        }
+      `}</style>
+    </>
   );
 };
 

@@ -108,7 +108,23 @@ const initializeDB = async () => {
       );
     `);
 
-    console.log("✅ Database tables ready (uploads, tenders, tender_documents) - Strict Schema");
+    // ── raw_excel_rows: stores every uploaded Excel row as raw JSON ───────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS raw_excel_rows (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        upload_id  INTEGER NOT NULL,
+        row_index  INTEGER NOT NULL,
+        row_data   TEXT    NOT NULL,
+        FOREIGN KEY(upload_id) REFERENCES uploads(id) ON DELETE CASCADE
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_raw_excel_rows_upload_id
+      ON raw_excel_rows(upload_id);
+    `);
+
+    console.log("✅ Database tables ready (uploads, tenders, tender_documents, raw_excel_rows) - Strict Schema");
   } catch (error) {
     console.error("❌ Error initializing database:", error);
     process.exit(1);

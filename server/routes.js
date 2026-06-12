@@ -138,6 +138,14 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       await client.query(insertQuery, values);
     }
 
+    // 3. Save raw (format-free) rows
+    for (let i = 0; i < rawData.length; i++) {
+      await client.query(
+        `INSERT INTO raw_excel_rows (upload_id, row_index, row_data) VALUES ($1, $2, $3)`,
+        [newUpload.id, i, JSON.stringify(rawData[i])]
+      );
+    }
+
     await client.query("COMMIT");
 
     res.status(200).json({
@@ -161,6 +169,23 @@ router.get("/uploads", async (req, res) => {
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("FETCH UPLOADS ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── GET /api/tenders/uploads/:id/raw-rows ────────────────────────────────────────
+router.get("/uploads/:id/raw-rows", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "SELECT row_index, row_data FROM raw_excel_rows WHERE upload_id = $1 ORDER BY row_index ASC",
+      [id]
+    );
+    // Parse each row_data JSON string back to an object
+    const rows = result.rows.map((r) => JSON.parse(r.row_data));
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("FETCH RAW ROWS ERROR:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

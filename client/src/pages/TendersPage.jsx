@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import UploadsSidebar from '../components/UploadsSidebar';
-import UploadTender from '../components/UploadTender';
 import TenderTable from '../components/TenderTable';
 import SearchBar from '../components/SearchBar';
 import TenderDetail from '../components/TenderDetail';
 import TenderFormModal from '../components/TenderFormModal';
+import ExcelUploadModal from '../components/ExcelUploadModal';
+import ExcelViewerModal from '../components/ExcelViewerModal';
+import { UploadCloud, Plus } from 'lucide-react';
 import '../index.css';
 
 const STRICT_COLUMNS = [
@@ -25,18 +27,21 @@ const STRICT_COLUMNS = [
 const TendersPage = () => {
   const [uploads, setUploads] = useState([]);
   const [activeUploadId, setActiveUploadId] = useState('ALL');
-  
+
   const [tableData, setTableData] = useState([]);
   const [tableTitle, setTableTitle] = useState('');
   const [tableSubtitle, setTableSubtitle] = useState('');
 
   const [searchParams, setSearchParams] = useState({ q: '', publishedDate: '' });
   const [isSearching, setIsSearching] = useState(false);
-  
+
   const [activeTender, setActiveTender] = useState(null);
 
+  // Modal states
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingTender, setEditingTender] = useState(null);
+  const [viewingExcelUpload, setViewingExcelUpload] = useState(null); // for Excel viewer
 
   const fetchUploads = useCallback(async () => {
     try {
@@ -50,7 +55,7 @@ const TendersPage = () => {
   const fetchTableData = useCallback(async () => {
     try {
       const hasSearch = searchParams.q || searchParams.publishedDate;
-      
+
       if (hasSearch) {
         setIsSearching(true);
         const params = new URLSearchParams();
@@ -99,20 +104,16 @@ const TendersPage = () => {
   const handleUploadSuccess = (newUpload) => {
     fetchUploads();
     setActiveUploadId(newUpload.id);
+    setIsUploadModalOpen(false);
   };
 
   const handleSearch = (params) => {
     setSearchParams(params);
     setActiveTender(null);
   };
-  
-  const handleViewTender = (tender) => {
-    setActiveTender(tender);
-  };
-  
-  const handleBackToList = () => {
-    setActiveTender(null);
-  };
+
+  const handleViewTender = (tender) => setActiveTender(tender);
+  const handleBackToList = () => setActiveTender(null);
 
   const handleAddTender = () => {
     setEditingTender(null);
@@ -152,43 +153,79 @@ const TendersPage = () => {
 
   return (
     <div className="app-layout" style={{ height: "calc(100vh - 100px)", marginTop: "0" }}>
-      <UploadsSidebar 
-        uploads={uploads} 
+      <UploadsSidebar
+        uploads={uploads}
         activeUploadId={activeUploadId}
         onSelectUpload={(id) => {
           setActiveUploadId(id);
           setActiveTender(null);
         }}
         onUploadsChange={fetchUploads}
+        onViewExcel={(upload) => setViewingExcelUpload(upload)}
       />
-      
+
       <main className="main-content">
         {activeTender ? (
           <TenderDetail tender={activeTender} onBack={handleBackToList} />
         ) : (
           <>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <UploadTender onUploadSuccess={handleUploadSuccess} />
-              <button 
-                onClick={handleAddTender}
+            {/* ── Action Buttons ── */}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Upload Excel Button */}
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                id="btn-upload-excel"
                 style={{
-                  background: "#34d399",
-                  color: "#1e1e2e",
-                  padding: "0.8rem 1.5rem",
-                  borderRadius: "8px",
-                  border: "none",
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                  color: 'white',
+                  padding: '0.7rem 1.4rem',
+                  borderRadius: '9px',
+                  border: 'none',
                   fontWeight: 600,
-                  cursor: "pointer",
-                  height: "fit-content"
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  boxShadow: '0 4px 15px rgba(99,102,241,0.35)',
+                  transition: 'all 0.2s',
                 }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                + Add Tender Manually
+                <UploadCloud size={17} />
+                Upload Excel
+              </button>
+
+              {/* Add Tender Manually */}
+              <button
+                onClick={handleAddTender}
+                id="btn-add-tender"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(52,211,153,0.12)',
+                  color: '#34d399',
+                  padding: '0.7rem 1.4rem',
+                  borderRadius: '9px',
+                  border: '1px solid rgba(52,211,153,0.25)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseOut={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.12)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <Plus size={17} />
+                Add Tender Manually
               </button>
             </div>
-            
+
             <SearchBar onSearch={handleSearch} />
-            
-            <TenderTable 
+
+            <TenderTable
               data={tableData}
               columns={STRICT_COLUMNS}
               title={tableTitle}
@@ -198,16 +235,34 @@ const TendersPage = () => {
               onEditTender={handleEditTender}
               onDeleteTender={handleDeleteTender}
             />
-            {isFormModalOpen && (
-              <TenderFormModal 
-                tender={editingTender}
-                onSave={handleSaveTender}
-                onClose={() => setIsFormModalOpen(false)}
-              />
-            )}
           </>
         )}
       </main>
+
+      {/* ── Excel Upload Modal ── */}
+      {isUploadModalOpen && (
+        <ExcelUploadModal
+          onClose={() => setIsUploadModalOpen(false)}
+          onUploadSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* ── Excel Viewer Modal ── */}
+      {viewingExcelUpload && (
+        <ExcelViewerModal
+          upload={viewingExcelUpload}
+          onClose={() => setViewingExcelUpload(null)}
+        />
+      )}
+
+      {/* ── Add / Edit Tender Modal ── */}
+      {isFormModalOpen && (
+        <TenderFormModal
+          tender={editingTender}
+          onSave={handleSaveTender}
+          onClose={() => setIsFormModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
