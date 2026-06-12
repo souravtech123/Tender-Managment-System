@@ -1,35 +1,77 @@
-const { Pool } = require("pg");
-require("dotenv").config();
+const sqlite3 = require('sqlite3').verbose();
+const { open } = require('sqlite');
+const path = require('path');
+require('dotenv').config();
 
-const pool = new Pool({
-  user:     process.env.DB_USER     || "postgres",
-  host:     process.env.DB_HOST     || "localhost",
-  database: process.env.DB_NAME     || "tender_db",
-  password: process.env.DB_PASSWORD || "sourav2026",
-  port:     process.env.DB_PORT     || 5432,
-});
+let dbInstance = null;
+
+// Mock pool to match the 'pg' API
+const pool = {
+  query: async (text, params) => {
+    if (!dbInstance) {
+      throw new Error("Database not initialized");
+    }
+    
+    // SQLite uses $1, $2, etc., as named parameters instead of positional arrays.
+    // We convert the array [a, b] into { $1: a, $2: b }
+    let sqliteParams = {};
+    if (Array.isArray(params)) {
+      params.forEach((param, index) => {
+        sqliteParams[`$${index + 1}`] = param;
+      });
+    }
+
+    // Convert ILIKE to LIKE for SQLite compatibility just in case
+    const sqliteText = text.replace(/ILIKE/gi, 'LIKE');
+
+    const isSelect = sqliteText.trim().match(/^(SELECT|WITH)/i);
+    const hasReturning = sqliteText.match(/RETURNING/i);
+
+    if (isSelect || hasReturning) {
+      const rows = await dbInstance.all(sqliteText, sqliteParams);
+      return { rows, rowCount: rows.length };
+    } else {
+      const result = await dbInstance.run(sqliteText, sqliteParams);
+      return { rows: [], rowCount: result.changes, lastID: result.lastID };
+    }
+  },
+  connect: async () => {
+    return {
+      query: pool.query,
+      release: () => {}
+    };
+  }
+};
 
 const initializeDB = async () => {
   try {
+    const dbPath = path.resolve(__dirname, '../tender_db.sqlite');
+    dbInstance = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+
+    // Foreign keys must be enabled in SQLite manually per connection
+    await dbInstance.exec('PRAGMA foreign_keys = ON;');
+
     // ── Drop old dynamic JSONB tables to migrate to strict schema ─────────────
-    await pool.query(`DROP TABLE IF EXISTS upload_rows CASCADE;`);
-    // Removed DROP TABLE for uploads and tenders so data is stored permanently
+    await pool.query(`DROP TABLE IF EXISTS upload_rows;`);
 
     // ── uploads: one row per Excel file uploaded ─────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS uploads (
-        id          SERIAL PRIMARY KEY,
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
         file_name   VARCHAR(255)  NOT NULL,
         row_count   INTEGER       NOT NULL DEFAULT 0,
-        uploaded_at TIMESTAMP     NOT NULL DEFAULT NOW()
+        uploaded_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     // ── tenders: strict schema for tender data ───────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tenders (
-        id SERIAL PRIMARY KEY,
-        upload_id INTEGER REFERENCES uploads(id) ON DELETE CASCADE,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        upload_id INTEGER,
         
         area VARCHAR(255),
         unit_project TEXT,
@@ -42,7 +84,8 @@ const initializeDB = async () => {
         successful_bidder_name VARCHAR(500),
         successful_bidder_address TEXT,
         successful_bidder_contact VARCHAR(255),
-        successful_bidder_email VARCHAR(255)
+        successful_bidder_email VARCHAR(255),
+        FOREIGN KEY(upload_id) REFERENCES uploads(id) ON DELETE CASCADE
       );
     `);
 
@@ -55,12 +98,13 @@ const initializeDB = async () => {
     // ── tender_documents: strict schema for tender documents ─────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tender_documents (
-        id SERIAL PRIMARY KEY,
-        tender_id INTEGER REFERENCES tenders(id) ON DELETE CASCADE,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tender_id INTEGER,
         document_name VARCHAR(255) NOT NULL,
         file_name VARCHAR(255) NOT NULL,
         file_path TEXT NOT NULL,
-        uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()
+        uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(tender_id) REFERENCES tenders(id) ON DELETE CASCADE
       );
     `);
 

@@ -9,6 +9,7 @@ const TenderDetail = ({ tender, onBack }) => {
   const [docName, setDocName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [viewingDoc, setViewingDoc] = useState(null);
 
   useEffect(() => {
     if (tender && tender.id) {
@@ -271,22 +272,21 @@ const TenderDetail = ({ tender, onBack }) => {
                         </div>
                       </div>
                     </div>
-                    <a 
-                      href={`http://localhost:5000${doc.file_path}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => setViewingDoc(doc)}
                       style={{
                         background: "rgba(59, 130, 246, 0.2)",
                         color: "#60a5fa",
                         padding: "0.4rem 0.8rem",
                         borderRadius: "4px",
                         fontSize: "0.8rem",
-                        textDecoration: "none",
+                        border: "none",
+                        cursor: "pointer",
                         fontWeight: 500
                       }}
                     >
                       View
-                    </a>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -295,6 +295,73 @@ const TenderDetail = ({ tender, onBack }) => {
           
         </div>
       </div>
+
+      {/* Document Viewer Modal */}
+      {viewingDoc && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.8)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 1000,
+          padding: "2rem"
+        }}>
+          <div style={{
+            background: "#1e1e2e",
+            borderRadius: "12px",
+            width: "100%",
+            maxWidth: "1000px",
+            height: "90vh",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+            overflow: "hidden"
+          }}>
+            <div style={{
+              padding: "1rem 1.5rem",
+              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "rgba(0,0,0,0.2)"
+            }}>
+              <h3 style={{ margin: 0, color: "#eee", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <FileText size={18} color="#60a5fa" />
+                {viewingDoc.document_name}
+              </h3>
+              <button 
+                onClick={() => setViewingDoc(null)}
+                style={{
+                  background: "rgba(239, 68, 68, 0.2)",
+                  color: "#ef4444",
+                  border: "none",
+                  padding: "0.4rem 0.8rem",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  transition: "background 0.2s"
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.3)"}
+                onMouseOut={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
+              >
+                Close
+              </button>
+            </div>
+            <div style={{ flexGrow: 1, backgroundColor: "#fff", position: "relative" }}>
+              <iframe 
+                src={`http://localhost:5000${viewingDoc.file_path}`} 
+                title={viewingDoc.document_name}
+                style={{ width: "100%", height: "100%", border: "none" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -217,10 +217,10 @@ router.get("/search", async (req, res) => {
 
     if (q) {
       queryStr += ` AND (
-        t.area ILIKE $${paramIndex} OR
-        t.unit_project ILIKE $${paramIndex} OR
-        t.type_of_contract ILIKE $${paramIndex} OR
-        t.successful_bidder_name ILIKE $${paramIndex}
+        t.area LIKE $${paramIndex} OR
+        t.unit_project LIKE $${paramIndex} OR
+        t.type_of_contract LIKE $${paramIndex} OR
+        t.successful_bidder_name LIKE $${paramIndex}
       )`;
       queryParams.push(`%${q}%`);
       paramIndex++;
