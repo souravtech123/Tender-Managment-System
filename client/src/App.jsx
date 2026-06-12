@@ -5,6 +5,7 @@ import UploadTender from './components/UploadTender';
 import TenderTable from './components/TenderTable';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import SearchBar from './components/SearchBar';
+import TenderDetail from './components/TenderDetail';
 import './index.css';
 
 const STRICT_COLUMNS = [
@@ -31,6 +32,8 @@ function App() {
 
   const [searchParams, setSearchParams] = useState({ q: '', publishedDate: '' });
   const [isSearching, setIsSearching] = useState(false);
+  
+  const [activeTender, setActiveTender] = useState(null);
 
   const fetchUploads = useCallback(async () => {
     try {
@@ -97,6 +100,15 @@ function App() {
 
   const handleSearch = (params) => {
     setSearchParams(params);
+    setActiveTender(null);
+  };
+  
+  const handleViewTender = (tender) => {
+    setActiveTender(tender);
+  };
+  
+  const handleBackToList = () => {
+    setActiveTender(null);
   };
 
   return (
@@ -104,26 +116,36 @@ function App() {
       <UploadsSidebar 
         uploads={uploads} 
         activeUploadId={activeUploadId}
-        onSelectUpload={setActiveUploadId}
+        onSelectUpload={(id) => {
+          setActiveUploadId(id);
+          setActiveTender(null);
+        }}
         onUploadsChange={fetchUploads}
       />
       
       <main className="main-content">
-        <UploadTender onUploadSuccess={handleUploadSuccess} />
-        
-        <SearchBar onSearch={handleSearch} />
-        
-        {tableData && tableData.length > 0 && !isSearching && (
-          <AnalyticsDashboard data={tableData} />
+        {activeTender ? (
+          <TenderDetail tender={activeTender} onBack={handleBackToList} />
+        ) : (
+          <>
+            <UploadTender onUploadSuccess={handleUploadSuccess} />
+            
+            <SearchBar onSearch={handleSearch} />
+            
+            {tableData && tableData.length > 0 && !isSearching && (
+              <AnalyticsDashboard data={tableData} />
+            )}
+            
+            <TenderTable 
+              data={tableData}
+              columns={STRICT_COLUMNS}
+              title={tableTitle}
+              subtitle={tableSubtitle}
+              showSourceFile={activeUploadId === 'ALL' || isSearching}
+              onViewTender={handleViewTender}
+            />
+          </>
         )}
-        
-        <TenderTable 
-          data={tableData}
-          columns={STRICT_COLUMNS}
-          title={tableTitle}
-          subtitle={tableSubtitle}
-          showSourceFile={activeUploadId === 'ALL' || isSearching}
-        />
       </main>
     </div>
   );

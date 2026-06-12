@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Search, Database, MapPin, Users, Calendar } from "lucide-react";
+import { Search, Database, MapPin, Users, Calendar, Eye } from "lucide-react";
 
-const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false }) => {
+const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, onViewTender }) => {
   const [globalSearch, setGlobalSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [contractorFilter, setContractorFilter] = useState("");
@@ -179,6 +179,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false })
             <thead>
               <tr>
                 <th style={{ width: 48, textAlign: "center", color: "#666" }}>#</th>
+                <th style={{ width: 80, textAlign: "center", color: "#666" }}>Action</th>
                 {displayColumns.map((col) => (
                   <th key={col}>
                     {getHeaderName(col)}
@@ -191,7 +192,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false })
           <tbody>
             {!hasData ? (
               <tr>
-                <td colSpan={displayColumns.length + 1 || 1} className="empty-state">
+                <td colSpan={displayColumns.length + 2 || 2} className="empty-state">
                   <Database size={52} style={{ marginBottom: "0.75rem", opacity: 0.4 }} />
                   <p style={{ fontSize: "1rem", marginBottom: "0.3rem" }}>No data selected</p>
                   <p style={{ color: "#666", fontSize: "0.85rem" }}>
@@ -201,7 +202,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false })
               </tr>
             ) : filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={displayColumns.length + 1} className="empty-state">
+                <td colSpan={displayColumns.length + 2} className="empty-state">
                   <Search size={40} style={{ marginBottom: "0.75rem", opacity: 0.4 }} />
                   <p>No rows match your search.</p>
                 </td>
@@ -211,6 +212,28 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false })
                 <tr key={`${row._sourceFile || ''}-${row.id}-${idx}`}>
                   <td style={{ textAlign: "center", color: "#555", fontSize: "0.8rem" }}>
                     {idx + 1}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button 
+                      onClick={() => onViewTender && onViewTender(row)}
+                      style={{
+                        background: "rgba(59, 130, 246, 0.2)",
+                        color: "#60a5fa",
+                        border: "1px solid rgba(59, 130, 246, 0.3)",
+                        borderRadius: "4px",
+                        padding: "0.3rem 0.6rem",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s"
+                      }}
+                      title="View Details"
+                      onMouseOver={(e) => e.currentTarget.style.background = "rgba(59, 130, 246, 0.3)"}
+                      onMouseOut={(e) => e.currentTarget.style.background = "rgba(59, 130, 246, 0.2)"}
+                    >
+                      <Eye size={16} />
+                    </button>
                   </td>
                   {displayColumns.map((col) => {
                     let val = row[col];

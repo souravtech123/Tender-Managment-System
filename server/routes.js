@@ -253,5 +253,70 @@ router.delete("/uploads/:id", async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+// ─── Document Upload Config ───────────────────────────────────────────────────
+const path = require("path");
+const fs = require("fs");
+
+const documentStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, "uploads", "documents");
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+const uploadDocument = multer({ storage: documentStorage });
+
+// ─── POST /api/tenders/:id/documents ──────────────────────────────────────────
+router.post("/:id/documents", uploadDocument.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No file uploaded" });
+  }
+
+  const { id } = req.params;
+  const { document_name } = req.body;
+  
+  if (!document_name) {
+    // optionally cleanup the uploaded file if we want to be strict
+    fs.unlinkSync(req.file.path);
+    return res.status(400).json({ success: false, message: "document_name is required" });
+  }
+
+  try {
+    // file_path relative to server root to serve easily via static route
+    const file_path = "/uploads/documents/" + req.file.filename;
+
+    const result = await pool.query(
+      `INSERT INTO tender_documents (tender_id, document_name, file_name, file_path)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [id, document_name, req.file.originalname, file_path]
+    );
+
+    res.status(201).json({ success: true, document: result.rows[0] });
+  } catch (error) {
+    console.error("DOCUMENT UPLOAD ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── GET /api/tenders/:id/documents ───────────────────────────────────────────
+router.get("/:id/documents", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      "SELECT * FROM tender_documents WHERE tender_id = $1 ORDER BY uploaded_at DESC",
+      [id]
+    );
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("FETCH DOCUMENTS ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 module.exports = router;

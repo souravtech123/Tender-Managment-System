@@ -13,8 +13,7 @@ const initializeDB = async () => {
   try {
     // ── Drop old dynamic JSONB tables to migrate to strict schema ─────────────
     await pool.query(`DROP TABLE IF EXISTS upload_rows CASCADE;`);
-    await pool.query(`DROP TABLE IF EXISTS uploads CASCADE;`);
-    await pool.query(`DROP TABLE IF EXISTS tenders CASCADE;`);
+    // Removed DROP TABLE for uploads and tenders so data is stored permanently
 
     // ── uploads: one row per Excel file uploaded ─────────────────────────────
     await pool.query(`
@@ -53,7 +52,19 @@ const initializeDB = async () => {
       ON tenders(upload_id);
     `);
 
-    console.log("✅ Database tables ready (uploads, tenders) - Strict Schema");
+    // ── tender_documents: strict schema for tender documents ─────────────────
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tender_documents (
+        id SERIAL PRIMARY KEY,
+        tender_id INTEGER REFERENCES tenders(id) ON DELETE CASCADE,
+        document_name VARCHAR(255) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_path TEXT NOT NULL,
+        uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    console.log("✅ Database tables ready (uploads, tenders, tender_documents) - Strict Schema");
   } catch (error) {
     console.error("❌ Error initializing database:", error);
     process.exit(1);
