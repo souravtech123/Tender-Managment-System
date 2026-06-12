@@ -184,10 +184,10 @@ router.get("/uploads/:id/rows", async (req, res) => {
 router.get("/rows", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT u.file_name as _sourceFile, t.*
+      SELECT COALESCE(u.file_name, 'Manual Entry') as _sourceFile, t.*
       FROM tenders t
-      JOIN uploads u ON t.upload_id = u.id
-      ORDER BY u.uploaded_at DESC, t.id ASC
+      LEFT JOIN uploads u ON t.upload_id = u.id
+      ORDER BY t.id DESC
     `);
     res.status(200).json(result.rows);
   } catch (error) {
@@ -201,9 +201,9 @@ router.get("/search", async (req, res) => {
   try {
     const { q, publishedDate, uploadId } = req.query;
     let queryStr = `
-      SELECT u.file_name as _sourceFile, t.*
+      SELECT COALESCE(u.file_name, 'Manual Entry') as _sourceFile, t.*
       FROM tenders t
-      JOIN uploads u ON t.upload_id = u.id
+      LEFT JOIN uploads u ON t.upload_id = u.id
       WHERE 1=1
     `;
     const queryParams = [];
@@ -238,6 +238,76 @@ router.get("/search", async (req, res) => {
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("SEARCH ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── POST /api/tenders/rows ───────────────────────────────────────────────────
+router.post("/rows", express.json(), async (req, res) => {
+  try {
+    const {
+      area, unit_project, type_of_contract, contract_period, published_date,
+      bidders_participated, qualified_bidder, successful_bidder_name,
+      successful_bidder_address, successful_bidder_contact, successful_bidder_email
+    } = req.body;
+
+    const result = await pool.query(`
+      INSERT INTO tenders (
+        upload_id, area, unit_project, type_of_contract, contract_period, published_date,
+        bidders_participated, qualified_bidder, successful_bidder_name,
+        successful_bidder_address, successful_bidder_contact, successful_bidder_email
+      ) VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
+    `, [
+      area, unit_project, type_of_contract, contract_period, published_date,
+      bidders_participated || 0, qualified_bidder || 0, successful_bidder_name,
+      successful_bidder_address, successful_bidder_contact, successful_bidder_email
+    ]);
+    
+    res.status(201).json({ success: true, tender: result.rows[0] });
+  } catch (error) {
+    console.error("ADD TENDER ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── PUT /api/tenders/rows/:id ────────────────────────────────────────────────
+router.put("/rows/:id", express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      area, unit_project, type_of_contract, contract_period, published_date,
+      bidders_participated, qualified_bidder, successful_bidder_name,
+      successful_bidder_address, successful_bidder_contact, successful_bidder_email
+    } = req.body;
+
+    const result = await pool.query(`
+      UPDATE tenders SET
+        area = $1, unit_project = $2, type_of_contract = $3, contract_period = $4,
+        published_date = $5, bidders_participated = $6, qualified_bidder = $7,
+        successful_bidder_name = $8, successful_bidder_address = $9,
+        successful_bidder_contact = $10, successful_bidder_email = $11
+      WHERE id = $12 RETURNING *
+    `, [
+      area, unit_project, type_of_contract, contract_period, published_date,
+      bidders_participated || 0, qualified_bidder || 0, successful_bidder_name,
+      successful_bidder_address, successful_bidder_contact, successful_bidder_email, id
+    ]);
+    
+    res.status(200).json({ success: true, tender: result.rows[0] });
+  } catch (error) {
+    console.error("UPDATE TENDER ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─── DELETE /api/tenders/rows/:id ─────────────────────────────────────────────
+router.delete("/rows/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM tenders WHERE id = $1", [id]);
+    res.status(200).json({ success: true, message: "Tender deleted successfully" });
+  } catch (error) {
+    console.error("DELETE TENDER ERROR:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

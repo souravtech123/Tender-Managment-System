@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { Search, Database, MapPin, Users, Calendar, Eye } from "lucide-react";
+import { Search, Database, MapPin, Users, Calendar, Eye, Edit2, Trash2 } from "lucide-react";
 
-const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, onViewTender }) => {
+const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, onViewTender, onEditTender, onDeleteTender }) => {
   const [globalSearch, setGlobalSearch] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [contractorFilter, setContractorFilter] = useState("");
@@ -179,7 +179,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, o
             <thead>
               <tr>
                 <th style={{ width: 48, textAlign: "center", color: "#666" }}>#</th>
-                <th style={{ width: 80, textAlign: "center", color: "#666" }}>Action</th>
+                <th style={{ width: 120, textAlign: "center", color: "#666" }}>Action</th>
                 {displayColumns.map((col) => (
                   <th key={col}>
                     {getHeaderName(col)}
@@ -213,7 +213,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, o
                   <td style={{ textAlign: "center", color: "#555", fontSize: "0.8rem" }}>
                     {idx + 1}
                   </td>
-                  <td style={{ textAlign: "center" }}>
+                  <td style={{ textAlign: "center", display: "flex", gap: "0.5rem", justifyContent: "center" }}>
                     <button 
                       onClick={() => onViewTender && onViewTender(row)}
                       style={{
@@ -221,7 +221,7 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, o
                         color: "#60a5fa",
                         border: "1px solid rgba(59, 130, 246, 0.3)",
                         borderRadius: "4px",
-                        padding: "0.3rem 0.6rem",
+                        padding: "0.3rem 0.4rem",
                         cursor: "pointer",
                         display: "inline-flex",
                         alignItems: "center",
@@ -234,6 +234,54 @@ const TenderTable = ({ data, columns, title, subtitle, showSourceFile = false, o
                     >
                       <Eye size={16} />
                     </button>
+                    {onEditTender && (
+                      <button 
+                        onClick={() => onEditTender(row)}
+                        style={{
+                          background: "rgba(52, 211, 153, 0.2)",
+                          color: "#34d399",
+                          border: "1px solid rgba(52, 211, 153, 0.3)",
+                          borderRadius: "4px",
+                          padding: "0.3rem 0.4rem",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s"
+                        }}
+                        title="Edit Tender"
+                        onMouseOver={(e) => e.currentTarget.style.background = "rgba(52, 211, 153, 0.3)"}
+                        onMouseOut={(e) => e.currentTarget.style.background = "rgba(52, 211, 153, 0.2)"}
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                    {onDeleteTender && (
+                      <button 
+                        onClick={() => {
+                          if(window.confirm("Are you sure you want to delete this tender?")) {
+                            onDeleteTender(row);
+                          }
+                        }}
+                        style={{
+                          background: "rgba(239, 68, 68, 0.2)",
+                          color: "#ef4444",
+                          border: "1px solid rgba(239, 68, 68, 0.3)",
+                          borderRadius: "4px",
+                          padding: "0.3rem 0.4rem",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s"
+                        }}
+                        title="Delete Tender"
+                        onMouseOver={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.3)"}
+                        onMouseOut={(e) => e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </td>
                   {displayColumns.map((col) => {
                     let val = row[col];

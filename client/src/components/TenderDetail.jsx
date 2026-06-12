@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ArrowLeft, UploadCloud, FileText, Trash2, Calendar, MapPin, Briefcase, Users, Phone, Mail, Building } from 'lucide-react';
+import * as mammoth from 'mammoth';
 import '../index.css';
 
 const TenderDetail = ({ tender, onBack }) => {
@@ -10,6 +11,40 @@ const TenderDetail = ({ tender, onBack }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [viewingDoc, setViewingDoc] = useState(null);
+  const [docxHtml, setDocxHtml] = useState('');
+  const [isDocxLoading, setIsDocxLoading] = useState(false);
+
+  useEffect(() => {
+    if (viewingDoc) {
+      const fileName = viewingDoc.file_name.toLowerCase();
+      if (fileName.endsWith('.docx')) {
+        setIsDocxLoading(true);
+        setDocxHtml('');
+        axios.get(`http://localhost:5000${viewingDoc.file_path}`, { responseType: 'arraybuffer' })
+          .then(response => {
+            mammoth.convertToHtml({ arrayBuffer: response.data })
+              .then(result => {
+                setDocxHtml(result.value);
+                setIsDocxLoading(false);
+              })
+              .catch(err => {
+                console.error("Mammoth error", err);
+                setDocxHtml('<p style="color:red">Failed to render DOCX document. It might be corrupted or unsupported.</p>');
+                setIsDocxLoading(false);
+              });
+          })
+          .catch(err => {
+            console.error("Fetch doc error", err);
+            setDocxHtml('<p style="color:red">Failed to download document.</p>');
+            setIsDocxLoading(false);
+          });
+      } else {
+        setDocxHtml('');
+      }
+    } else {
+      setDocxHtml('');
+    }
+  }, [viewingDoc]);
 
   useEffect(() => {
     if (tender && tender.id) {
@@ -352,12 +387,24 @@ const TenderDetail = ({ tender, onBack }) => {
                 Close
               </button>
             </div>
-            <div style={{ flexGrow: 1, backgroundColor: "#fff", position: "relative" }}>
-              <iframe 
-                src={`http://localhost:5000${viewingDoc.file_path}`} 
-                title={viewingDoc.document_name}
-                style={{ width: "100%", height: "100%", border: "none" }}
-              />
+            <div style={{ flexGrow: 1, backgroundColor: "#fff", position: "relative", overflow: "auto", padding: docxHtml ? "2rem" : 0 }}>
+              {isDocxLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#666', fontSize: '1.2rem' }}>
+                  Loading Document...
+                </div>
+              ) : docxHtml ? (
+                <div 
+                  dangerouslySetInnerHTML={{ __html: docxHtml }} 
+                  style={{ color: '#000', fontFamily: 'Arial, sans-serif', lineHeight: '1.6' }} 
+                  className="docx-viewer"
+                />
+              ) : (
+                <iframe 
+                  src={`http://localhost:5000${viewingDoc.file_path}`} 
+                  title={viewingDoc.document_name}
+                  style={{ width: "100%", height: "100%", border: "none" }}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import TenderTable from './components/TenderTable';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import SearchBar from './components/SearchBar';
 import TenderDetail from './components/TenderDetail';
+import TenderFormModal from './components/TenderFormModal';
 import './index.css';
 
 const STRICT_COLUMNS = [
@@ -34,6 +35,9 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   
   const [activeTender, setActiveTender] = useState(null);
+
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [editingTender, setEditingTender] = useState(null);
 
   const fetchUploads = useCallback(async () => {
     try {
@@ -111,6 +115,42 @@ function App() {
     setActiveTender(null);
   };
 
+  const handleAddTender = () => {
+    setEditingTender(null);
+    setIsFormModalOpen(true);
+  };
+
+  const handleEditTender = (tender) => {
+    setEditingTender(tender);
+    setIsFormModalOpen(true);
+  };
+
+  const handleDeleteTender = async (tender) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/tenders/rows/${tender.id}`);
+      fetchTableData();
+    } catch (error) {
+      console.error("Failed to delete tender", error);
+      alert("Failed to delete tender");
+    }
+  };
+
+  const handleSaveTender = async (formData) => {
+    try {
+      if (editingTender) {
+        await axios.put(`http://localhost:5000/api/tenders/rows/${editingTender.id}`, formData);
+      } else {
+        await axios.post(`http://localhost:5000/api/tenders/rows`, formData);
+      }
+      setIsFormModalOpen(false);
+      setEditingTender(null);
+      fetchTableData();
+    } catch (error) {
+      console.error("Failed to save tender", error);
+      alert("Failed to save tender");
+    }
+  };
+
   return (
     <div className="app-layout">
       <UploadsSidebar 
@@ -128,7 +168,24 @@ function App() {
           <TenderDetail tender={activeTender} onBack={handleBackToList} />
         ) : (
           <>
-            <UploadTender onUploadSuccess={handleUploadSuccess} />
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <UploadTender onUploadSuccess={handleUploadSuccess} />
+              <button 
+                onClick={handleAddTender}
+                style={{
+                  background: "#34d399",
+                  color: "#1e1e2e",
+                  padding: "0.8rem 1.5rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  height: "fit-content"
+                }}
+              >
+                + Add Tender Manually
+              </button>
+            </div>
             
             <SearchBar onSearch={handleSearch} />
             
@@ -143,7 +200,16 @@ function App() {
               subtitle={tableSubtitle}
               showSourceFile={activeUploadId === 'ALL' || isSearching}
               onViewTender={handleViewTender}
+              onEditTender={handleEditTender}
+              onDeleteTender={handleDeleteTender}
             />
+            {isFormModalOpen && (
+              <TenderFormModal 
+                tender={editingTender}
+                onSave={handleSaveTender}
+                onClose={() => setIsFormModalOpen(false)}
+              />
+            )}
           </>
         )}
       </main>
